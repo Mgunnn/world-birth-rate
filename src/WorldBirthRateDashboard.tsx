@@ -5,9 +5,9 @@ import { scaleSequential } from "d3-scale";
 import { interpolateTurbo } from "d3-scale-chromatic";
 import worldTopo from "world-atlas/countries-110m.json";
 
-// 使用你提供的數據（生育率：每位女性的平均子女數）
+// 生育率数据
 const DATA_2022: Record<string, { name: string; rate: number; region: string }> = {
-  // Top 1–20（節錄）
+  // 数据保持不变...
   NGA: { name: "奈及利亞", rate: 4.52, region: "非洲" },
   AGO: { name: "安哥拉", rate: 5.70, region: "非洲" },
   COD: { name: "剛果（金）", rate: 5.49, region: "非洲" },
@@ -21,7 +21,6 @@ const DATA_2022: Record<string, { name: string; rate: number; region: string }> 
   GIN: { name: "幾內亞", rate: 4.78, region: "非洲" },
   MOZ: { name: "莫三比克", rate: 4.66, region: "非洲" },
   GNB: { name: "幾內亞比索", rate: 4.62, region: "非洲" },
-  NGA2: { name: "奈及利亞(重複占位)", rate: 4.52, region: "非洲" }, // 佔位避免序號跳位（不影響地圖）
   SDN: { name: "蘇丹", rate: 4.47, region: "非洲" },
   CMR: { name: "喀麥隆", rate: 4.44, region: "非洲" },
   AFG: { name: "阿富汗", rate: 4.43, region: "亞洲" },
@@ -100,20 +99,17 @@ const DATA_2022: Record<string, { name: string; rate: number; region: string }> 
   PRK: { name: "朝鮮", rate: 1.81, region: "亞洲" },
   MYS: { name: "馬來西亞", rate: 1.73, region: "亞洲" },
   AUS: { name: "澳洲", rate: 1.73, region: "大洋洲" },
-  JPN: { name: "日本", rate: 1.40, region: "亞洲" },
   SGP: { name: "新加坡", rate: 1.17, region: "亞洲" },
   KOR: { name: "韓國", rate: 1.12, region: "亞洲" },
   CHN: { name: "中國（含台灣、香港、澳門）", rate: 1.55, region: "亞洲" },
   CAN: { name: "加拿大", rate: 1.26, region: "美洲" },
-  RUS: { name: "俄罗斯", rate: 1.41, region: "美洲" },
+  RUS: { name: "俄罗斯", rate: 1.41, region: "歐洲" },
   GRL: { name: "格陵兰", rate: 1.77, region: "" },
-  BRA: { name: "巴西", rate: 1.62, region: "" },
+  BRA: { name: "巴西", rate: 1.62, region: "美洲" },
   JPN: { name: "日本", rate: 1.20, region: "亞洲" },
-
-
 };
 
-// ISO_N3(數字) → ISO3(字母)；含 158→CHN
+// ISO_N3(數字) → ISO3(字母)映射
 const ISO3_MAP: Record<string, string> = {
   "004": "AFG", "008": "ALB", "012": "DZA", "020": "AND", "024": "AGO", "032": "ARG", "036": "AUS",
   "040": "AUT", "051": "ARM", "056": "BEL", "068": "BOL", "076": "BRA", "084": "BLZ", "090": "SLB",
@@ -140,12 +136,15 @@ const ISO3_MAP: Record<string, string> = {
 export default function WorldBirthRateDashboard() {
   const [tooltip, setTooltip] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [selectedCountry, setSelectedCountry] = useState<{name: string; rate: number; region: string} | null>(null);
 
+  // 处理地理数据
   const featureCollection = useMemo(
     () => feature(worldTopo as any, (worldTopo as any).objects.countries),
     []
   );
 
+  // 颜色比例尺和图例渐变
   const colorScale = useMemo(() => scaleSequential(interpolateTurbo).domain([6.7, 1.0]), []);
   const legendGradient = useMemo(
     () =>
@@ -155,8 +154,8 @@ export default function WorldBirthRateDashboard() {
     []
   );
 
+  // 处理鼠标移动
   const handleMouseMove = (e: React.MouseEvent) => {
-    // 取 pageX/pageY，避免滾動導致偏差
     let x = e.pageX + 15;
     let y = e.pageY + 15;
 
@@ -169,6 +168,22 @@ export default function WorldBirthRateDashboard() {
     setMousePos({ x, y });
   };
 
+  // 获取统计信息
+  const getStats = () => {
+    const rates = Object.values(DATA_2022).map(d => d.rate);
+    const maxRate = Math.max(...rates);
+    const maxCountry = Object.values(DATA_2022).find(d => d.rate === maxRate);
+    
+    const minRate = Math.min(...rates);
+    const minCountry = Object.values(DATA_2022).find(d => d.rate === minRate);
+    
+    const avgRate = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+    
+    return { maxRate, maxCountry, minRate, minCountry, avgRate };
+  };
+
+  const stats = getStats();
+
   return (
     <div
       style={{
@@ -176,134 +191,282 @@ export default function WorldBirthRateDashboard() {
         background: "radial-gradient(circle at 50% 20%, #0f172a 0%, #020617 100%)",
         color: "#e2e8f0",
         minHeight: "100vh",
-        padding: 32,
+        padding: "20px 15px",
       }}
     >
       <div
         style={{
-          maxWidth: 1200,
+          maxWidth: 1400,
           margin: "0 auto",
           background: "rgba(255,255,255,0.05)",
           border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 20,
-          padding: 36,
+          padding: "30px 20px",
           boxShadow: "0 0 40px rgba(56,189,248,0.2)",
           backdropFilter: "blur(16px)",
           position: "relative",
         }}
       >
-        <h1 style={{ fontSize: 28, fontWeight: 800, textAlign: "center", color: "#38bdf8" }}>
-          🌍 世界生育率地圖
-        </h1>
-        <p style={{ marginTop: 8, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
-          顏色越亮表示生育率越高；灰色為暫無資料。
-        </p>
+        {/* 标题区域 */}
+        <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <h1 style={{ 
+            fontSize: "clamp(1.8rem, 4vw, 2.5rem)", 
+            fontWeight: 800, 
+            color: "#38bdf8",
+            margin: "0 0 10px 0",
+            textShadow: "0 0 10px rgba(56,189,248,0.5)"
+          }}>
+            🌍 世界生育率地圖
+          </h1>
+          <p style={{ 
+            marginTop: 0, 
+            color: "#94a3b8", 
+            fontSize: "1rem",
+            maxWidth: 800,
+            marginLeft: "auto",
+            marginRight: "auto"
+          }}>
+            生育率表示每位女性的平均子女數。顏色越亮表示生育率越高；灰色為暫無資料。數據來源：2022年統計
+          </p>
+        </div>
 
-        <div
-          style={{ background: "#0b1120", borderRadius: 18, marginTop: 20, padding: 18 }}
-          onMouseMove={handleMouseMove}
-        >
-          <ComposableMap projectionConfig={{ scale: 150 }}>
-            <Geographies geography={featureCollection as any}>
-              {({ geographies }) =>
-                geographies.map((geo) => {
-                  const isoNum = String((geo as any).id).padStart(3, "0");
-                  const iso3 = ISO3_MAP[isoNum];
-                  const d = iso3 ? DATA_2022[iso3] : undefined;
-                  const fill = typeof d?.rate === "number" ? colorScale(d.rate) : "#1e293b";
-
-                  return (
-                    <Geography
-                      key={(geo as any).rsmKey}
-                      geography={geo}
-                      fill={fill}
-                      stroke="#0f172a"
-                      strokeWidth={0.4}
-                      style={{
-                        default: { outline: "none" },
-                        hover: {
-                          outline: "none",
-                          opacity: 0.9,
-                          filter: "drop-shadow(0 0 6px #38bdf8)",
-                        },
-                        pressed: { outline: "none" },
-                      }}
-                      onMouseEnter={() =>
-                        setTooltip(
-                          d
-                            ? `${d.name}：${d.rate.toFixed(2)}`
-                            : iso3
-                            ? `無資料（代碼：${iso3}）`
-                            : `無資料（ISO_N3：${isoNum}）`
-                        )
-                      }
-                      onMouseLeave={() => setTooltip(null)}
-                    />
-                  );
-                })
-              }
-            </Geographies>
-          </ComposableMap>
-
-          {/* 色階標尺 */}
+        {/* 主要内容区域 - 地图和统计信息 */}
+        <div style={{ 
+          display: "grid",
+          gridTemplateColumns: "1fr 300px",
+          gap: 20,
+          marginBottom: 20
+        }}>
+          {/* 地图容器 */}
           <div
-            style={{
-              position: "absolute",
-              left: 14,
-              bottom: 14,
-              background: "rgba(255,255,255,0.1)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 8,
-              padding: "6px 10px",
-              boxShadow: "0 0 8px rgba(56,189,248,0.3)",
-              fontSize: 10,
-              color: "#f1f5f9",
-              width: 160,
+            style={{ 
+              background: "#0b1120", 
+              borderRadius: 18, 
+              padding: 18,
+              height: 550,
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
             }}
+            onMouseMove={handleMouseMove}
           >
-            <div style={{ marginBottom: 4, fontWeight: 600 }}>生育率</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 16, textAlign: "right" }}>1.0</span>
-              <div style={{ flex: 1, height: 6, borderRadius: 4, background: legendGradient }} />
-              <span style={{ width: 24 }}>6.7</span>
-            </div>
+            <ComposableMap 
+              projectionConfig={{ scale: 150 }}
+              style={{ width: "100%", height: "100%" }}
+            >
+              <Geographies geography={featureCollection as any}>
+                {({ geographies }) =>
+                  geographies.map((geo) => {
+                    const isoNum = String((geo as any).id).padStart(3, "0");
+                    const iso3 = ISO3_MAP[isoNum];
+                    const d = iso3 ? DATA_2022[iso3] : undefined;
+                    const fill = typeof d?.rate === "number" ? colorScale(d.rate) : "#1e293b";
+
+                    return (
+                      <Geography
+                        key={(geo as any).rsmKey}
+                        geography={geo}
+                        fill={fill}
+                        stroke="#0f172a"
+                        strokeWidth={0.4}
+                        style={{
+                          default: { outline: "none", transition: "all 0.3s ease" },
+                          hover: {
+                            outline: "none",
+                            opacity: 0.9,
+                            filter: "drop-shadow(0 0 6px #38bdf8)",
+                            cursor: "pointer"
+                          },
+                          pressed: { outline: "none" },
+                        }}
+                        onMouseEnter={() => {
+                          setTooltip(
+                            d ? `${d.name}：${d.rate.toFixed(2)}` : 
+                            iso3 ? `無資料（代碼：${iso3}）` : 
+                            `無資料（ISO_N3：${isoNum}）`
+                          );
+                        }}
+                        onMouseLeave={() => setTooltip(null)}
+                        onClick={() => d && setSelectedCountry(d)}
+                      />
+                    );
+                  })
+                }
+              </Geographies>
+            </ComposableMap>
+
+            {/* 色阶标尺 */}
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginTop: 2,
-                fontSize: 9,
-                color: "#94a3b8",
+                position: "absolute",
+                left: 14,
+                bottom: 14,
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: 8,
+                padding: "6px 10px",
+                boxShadow: "0 0 8px rgba(56,189,248,0.3)",
+                fontSize: 10,
+                color: "#f1f5f9",
+                width: 160,
               }}
             >
-              <span>低</span>
-              <span>高</span>
+              <div style={{ marginBottom: 4, fontWeight: 600 }}>生育率</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 16, textAlign: "right" }}>1.0</span>
+                <div style={{ flex: 1, height: 6, borderRadius: 4, background: legendGradient }} />
+                <span style={{ width: 24 }}>6.7</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: 2,
+                  fontSize: 9,
+                  color: "#94a3b8",
+                }}
+              >
+                <span>低</span>
+                <span>高</span>
+              </div>
             </div>
           </div>
 
-          {/* 🟡 準確跟隨滑鼠的提示框 */}
-          {tooltip && (
-            <div
-              style={{
-                position: "fixed",
-                top: mousePos.y,
-                left: mousePos.x,
-                background: "rgba(2,6,23,0.95)",
-                padding: "8px 12px",
-                border: "1px solid rgba(56,189,248,0.5)",
-                borderRadius: 8,
-                boxShadow: "0 0 12px rgba(56,189,248,0.4)",
-                fontSize: 12,
-                color: "#e2e8f0",
-                pointerEvents: "none",
-                zIndex: 9999,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {tooltip}
+          {/* 统计信息面板 */}
+          <div style={{
+            background: "#0b1120",
+            borderRadius: 18,
+            padding: 20,
+            display: "flex",
+            flexDirection: "column",
+          }}>
+            <h2 style={{
+              color: "#e2e8f0",
+              margin: "0 0 20px 0",
+              fontSize: 1.3rem,
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
+              paddingBottom: 10
+            }}>
+              生育率統計
+            </h2>
+            
+            <div style={{ marginBottom: 25 }}>
+              <div style={{ color: "#94a3b8", fontSize: 0.9rem, marginBottom: 5 }}>全球平均生育率</div>
+              <div style={{ 
+                fontSize: "1.8rem", 
+                fontWeight: 700, 
+                color: "#38bdf8",
+                textShadow: "0 0 8px rgba(56,189,248,0.3)"
+              }}>
+                {stats.avgRate.toFixed(2)}
+              </div>
             </div>
-          )}
+            
+            <div style={{ marginBottom: 25 }}>
+              <div style={{ color: "#94a3b8", fontSize: 0.9rem, marginBottom: 5 }}>最高生育率</div>
+              <div style={{ 
+                fontSize: "1.8rem", 
+                fontWeight: 700, 
+                color: "#f97316",
+                textShadow: "0 0 8px rgba(249,115,22,0.3)"
+              }}>
+                {stats.maxRate.toFixed(2)}
+              </div>
+              <div style={{ fontSize: 0.85rem, color: "#cbd5e1", marginTop: 5 }}>
+                {stats.maxCountry?.name} ({stats.maxCountry?.region})
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: 25 }}>
+              <div style={{ color: "#94a3b8", fontSize: 0.9rem, marginBottom: 5 }}>最低生育率</div>
+              <div style={{ 
+                fontSize: "1.8rem", 
+                fontWeight: 700, 
+                color: "#60a5fa",
+                textShadow: "0 0 8px rgba(96,165,250,0.3)"
+              }}>
+                {stats.minRate.toFixed(2)}
+              </div>
+              <div style={{ fontSize: 0.85rem, color: "#cbd5e1", marginTop: 5 }}>
+                {stats.minCountry?.name} ({stats.minCountry?.region})
+              </div>
+            </div>
+            
+            {selectedCountry && (
+              <div style={{
+                marginTop: auto,
+                padding: 15,
+                background: "rgba(56,189,248,0.1)",
+                borderRadius: 12,
+                border: "1px solid rgba(56,189,248,0.2)"
+              }}>
+                <div style={{ color: "#94a3b8", fontSize: 0.85rem, marginBottom: 5 }}>已選國家</div>
+                <div style={{ fontSize: 1.1rem, fontWeight: 600, color: "#e2e8f0" }}>
+                  {selectedCountry.name}
+                </div>
+                <div style={{ fontSize: 0.9rem, color: "#cbd5e1", margin: "5px 0" }}>
+                  地區: {selectedCountry.region || "未知"}
+                </div>
+                <div style={{ fontSize: 1.3rem, fontWeight: 700, color: "#38bdf8" }}>
+                  生育率: {selectedCountry.rate.toFixed(2)}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* 信息说明卡片 */}
+        <div style={{
+          background: "rgba(11,17,32,0.7)",
+          borderRadius: 16,
+          padding: 20,
+          border: "1px solid rgba(255,255,255,0.08)",
+          marginTop: 10
+        }}>
+          <h3 style={{
+            margin: "0 0 12px 0",
+            color: "#94a3b8",
+            fontSize: 1.1rem,
+            display: "flex",
+            alignItems: "center",
+            gap: 8
+          }}>
+            <span>📊</span> 關於生育率
+          </h3>
+          <p style={{
+            margin: 0,
+            color: "#cbd5e1",
+            fontSize: 0.9rem,
+            lineHeight: 1.6
+          }}>
+            生育率是衡量人口增長的重要指標，反映一個國家或地區的人口增長潛力。高生育率通常出現在發展中國家，而低生育率則多見於發達國家。長期低生育率可能導致人口老齡化和勞動力短缺等問題。
+          </p>
+        </div>
+
+        {/* 跟随鼠标的提示框 */}
+        {tooltip && (
+          <div
+            style={{
+              position: "fixed",
+              top: mousePos.y,
+              left: mousePos.x,
+              background: "rgba(2,6,23,0.95)",
+              padding: "8px 12px",
+              border: "1px solid rgba(56,189,248,0.5)",
+              borderRadius: 8,
+              boxShadow: "0 0 12px rgba(56,189,248,0.4)",
+              fontSize: 12,
+              color: "#e2e8f0",
+              pointerEvents: "none",
+              zIndex: 9999,
+              whiteSpace: "nowrap",
+              transition: "all 0.1s ease-out"
+            }}
+          >
+            {tooltip}
+          </div>
+        )}
       </div>
     </div>
   );
