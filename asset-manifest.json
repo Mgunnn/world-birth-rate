@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/world-birth-rate/static/css/main.e6c13ad2.css",
+    "main.js": "/world-birth-rate/static/js/main.55a02426.js",
+    "static/js/453.0ce07fe9.chunk.js": "/world-birth-rate/static/js/453.0ce07fe9.chunk.js",
+    "index.html": "/world-birth-rate/index.html",
+    "main.e6c13ad2.css.map": "/world-birth-rate/static/css/main.e6c13ad2.css.map",
+    "main.55a02426.js.map": "/world-birth-rate/static/js/main.55a02426.js.map",
+    "453.0ce07fe9.chunk.js.map": "/world-birth-rate/static/js/453.0ce07fe9.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.55a02426.js"
+  ]
+}
